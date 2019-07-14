@@ -22,7 +22,7 @@ namespace Convey.Tracing.Jaeger.RabbitMQ.Middlewares
         public override async Task InvokeAsync(IPipeContext context, CancellationToken token = new CancellationToken())
         {
             var correlationContext = (ICorrelationContext) context.GetMessageContext();
-            var message = context.GetMessageType().Name.Underscore();
+            var message = context.GetMessageType().Name.Underscore().ToLowerInvariant();
 
             using (var scope = BuildScope(message, correlationContext.SpanContext))
             {
