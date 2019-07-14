@@ -18,36 +18,38 @@ namespace Convey.Tracing.Jaeger.RabbitMQ.Middlewares
             => _tracer = tracer;
 
         public override string StageMarker => RawRabbit.Pipe.StageMarker.MessageDeserialized;
-        
-        public override Task InvokeAsync(IPipeContext context, CancellationToken token = new CancellationToken())
+
+        public override async Task InvokeAsync(IPipeContext context, CancellationToken token = new CancellationToken())
         {
             var correlationContext = (ICorrelationContext) context.GetMessageContext();
-            var messageType = context.GetMessageType();
+            var message = context.GetMessageType().Name.Underscore();
 
-            using (var scope = BuildScope(messageType, correlationContext.SpanContext))
+            using (var scope = BuildScope(message, correlationContext.SpanContext))
             {
                 var span = scope.Span;
-                span.Log($"Processing {messageType.Name}");
+                span.Log($"Started processing: {message}");
 
                 try
                 {
-                    return Next.InvokeAsync(context, token);
+                    await Next.InvokeAsync(context, token);
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     span.SetTag(Tags.Error, true);
                     span.Log(ex.Message);
                 }
+
+                span.Log($"Finished processing: {message}");
             }
 
-            return Next.Next.InvokeAsync(context, token);
+            await Next.Next.InvokeAsync(context, token);
         }
 
-        private IScope BuildScope(Type messageType, string serializedSpanContext)
+        private IScope BuildScope(string message, string serializedSpanContext)
         {
             var spanBuilder = _tracer
-                .BuildSpan($"processing-{messageType.Name}")
-                .WithTag("message-type", messageType.Name);
+                .BuildSpan($"processing-{message}")
+                .WithTag("message-type", message);
 
             if (string.IsNullOrEmpty(serializedSpanContext))
             {
@@ -55,7 +57,7 @@ namespace Convey.Tracing.Jaeger.RabbitMQ.Middlewares
             }
 
             var spanContext = SpanContext.ContextFromString(serializedSpanContext);
-            
+
             return spanBuilder
                 .AddReference(References.FollowsFrom, spanContext)
                 .StartActive(true);
