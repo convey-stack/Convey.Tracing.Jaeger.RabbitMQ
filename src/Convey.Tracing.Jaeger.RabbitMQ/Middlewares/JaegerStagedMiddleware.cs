@@ -28,7 +28,6 @@ namespace Convey.Tracing.Jaeger.RabbitMQ.Middlewares
             {
                 var span = scope.Span;
                 span.Log($"Started processing: {message}");
-
                 try
                 {
                     await Next.InvokeAsync(context, token);
