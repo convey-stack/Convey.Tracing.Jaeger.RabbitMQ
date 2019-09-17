@@ -23,11 +23,12 @@ namespace Convey.Tracing.Jaeger.RabbitMQ.Middlewares
         {
             var correlationContext = (ICorrelationContext) context.GetMessageContext();
             var message = context.GetMessageType().Name.Underscore().ToLowerInvariant();
+            var messageId = context.GetDeliveryEventArgs().BasicProperties.MessageId;
 
             using (var scope = BuildScope(message, correlationContext.SpanContext))
             {
                 var span = scope.Span;
-                span.Log($"Started processing: {message}");
+                span.Log($"Started processing: {message} [id: {messageId}]");
                 try
                 {
                     await Next.InvokeAsync(context, token);
@@ -38,10 +39,8 @@ namespace Convey.Tracing.Jaeger.RabbitMQ.Middlewares
                     span.Log(ex.Message);
                 }
 
-                span.Log($"Finished processing: {message}");
+                span.Log($"Finished processing: {message} [id: {messageId}]");
             }
-
-            await Next.InvokeAsync(context, token);
         }
 
         private IScope BuildScope(string message, string serializedSpanContext)
