@@ -41,7 +41,7 @@ namespace Convey.Tracing.Jaeger.RabbitMQ.Middlewares
                 span.Log($"Finished processing: {message}");
             }
 
-            await Next.Next.InvokeAsync(context, token);
+            await Next.InvokeAsync(context, token);
         }
 
         private IScope BuildScope(string message, string serializedSpanContext)
