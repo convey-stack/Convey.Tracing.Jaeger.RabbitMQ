@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using System.Threading.Tasks;
 using Convey.MessageBrokers;
 using Convey.MessageBrokers.RabbitMQ;
@@ -15,13 +16,19 @@ namespace Convey.Tracing.Jaeger.RabbitMQ.Middlewares
 
         public JaegerMiddleware(ITracer tracer) => _tracer = tracer;
 
-        public async Task HandleAsync(Func<Task> next, object message, ICorrelationContext correlationContext,
+        public async Task HandleAsync(Func<Task> next, object message, object correlationContext,
             BasicDeliverEventArgs args)
         {
             var messageName = message.GetType().Name;
             var messageId = args.BasicProperties.MessageId;
+            var spanContext = string.Empty;
+            if (args.BasicProperties.Headers.TryGetValue("span_context", out var spanContextHeader) &&
+                spanContextHeader is byte[] spanContextBytes)
+            {
+                spanContext = Encoding.UTF8.GetString(spanContextBytes);
+            }
 
-            using (var scope = BuildScope(messageName, correlationContext?.SpanContext))
+            using (var scope = BuildScope(messageName, spanContext))
             {
                 var span = scope.Span;
                 span.Log($"Started processing: {messageName} [id: {messageId}]");
